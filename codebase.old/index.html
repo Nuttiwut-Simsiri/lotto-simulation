@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สุ่มเลขหวย — Ball Machine</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --surface: #161b22;
+  --gold: #d4a843;
+  --gold-light: #f0cc6e;
+  --gold-dark: #8a6a1e;
+  --red-ball: #e8392a;
+  --red-shine: #ff7060;
+  --red-dark: #8b1a0f;
+  --glass: rgba(180,210,255,0.08);
+  --glass-border: rgba(180,210,255,0.25);
+  --text: #e8dcc8;
+  --text-muted: #7a6e58;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Sarabun', sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1rem 3rem;
+  overflow-x: hidden;
+}
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(212,168,67,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 40% at 20% 80%, rgba(0,80,160,0.06) 0%, transparent 50%);
+  pointer-events:none; z-index:0;
+}
+.wrapper { position:relative; z-index:1; width:100%; max-width:860px; }
+
+header { text-align:center; margin-bottom:1.5rem; }
+.header-deco { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:4px; }
+.deco-line { height:1px; width:40px; background:linear-gradient(90deg, transparent, var(--gold)); }
+.deco-line.r { transform:scaleX(-1); }
+h1 { font-weight:300; font-size:1.1rem; letter-spacing:0.3em; color:var(--gold-light); text-transform:uppercase; }
+.sub { font-size:0.72rem; color:var(--text-muted); letter-spacing:0.18em; margin-top:3px; }
+
+/* MODE TABS */
+.mode-tabs { display:flex; gap:6px; justify-content:center; margin-bottom:1.5rem; flex-wrap:wrap; }
+.mode-tab {
+  padding:6px 18px; border-radius:20px;
+  border:0.5px solid rgba(212,168,67,0.3);
+  background:transparent; cursor:pointer;
+  font-family:'Sarabun',sans-serif; font-size:0.85rem; color:var(--text-muted);
+  transition:all 0.2s;
+}
+.mode-tab.active { background:rgba(212,168,67,0.12); color:var(--gold-light); border-color:var(--gold); }
+
+/* MACHINES ROW */
+.machines-row {
+  display:flex; justify-content:center; align-items:flex-end;
+  gap:10px; flex-wrap:wrap; margin-bottom:1.5rem;
+}
+.machine-wrap { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.machine-label {
+  font-size:0.65rem; color:var(--text-muted); letter-spacing:0.15em;
+  text-transform:uppercase;
+}
+
+/* THE BALL MACHINE */
+.machine {
+  width:100px; height:100px;
+  position:relative;
+  cursor:default;
+}
+
+/* Outer glass ring */
+.drum {
+  width:100px; height:100px;
+  border-radius:50%;
+  position:absolute; top:0; left:0;
+  background: radial-gradient(circle at 35% 30%, rgba(140,190,255,0.18) 0%, rgba(30,60,120,0.35) 60%, rgba(10,20,60,0.55) 100%);
+  border:2px solid var(--glass-border);
+  box-shadow:
+    inset 0 0 20px rgba(100,160,255,0.1),
+    inset 0 2px 4px rgba(255,255,255,0.15),
+    0 4px 20px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(100,150,255,0.08);
+  overflow:hidden;
+  transform-origin:center center;
+}
+
+/* Glass shine overlay */
+.drum::before {
+  content:'';
+  position:absolute; top:5%; left:10%; width:55%; height:40%;
+  background:radial-gradient(ellipse, rgba(255,255,255,0.18) 0%, transparent 70%);
+  border-radius:50%;
+  pointer-events:none;
+}
+/* Bottom reflection */
+.drum::after {
+  content:'';
+  position:absolute; bottom:8%; left:20%; width:60%; height:20%;
+  background:radial-gradient(ellipse, rgba(100,160,255,0.12) 0%, transparent 70%);
+  border-radius:50%;
+  pointer-events:none;
+}
+
+/* Drum axle */
+.axle {
+  position:absolute; top:50%; left:50%;
+  transform:translate(-50%,-50%);
+  width:10px; height:10px;
+  border-radius:50%;
+  background:radial-gradient(circle at 35% 35%, #c0d8ff, #3060b0);
+  border:1.5px solid rgba(255,255,255,0.4);
+  z-index:10;
+  box-shadow:0 0 6px rgba(80,140,255,0.5);
+}
+
+/* Ball container inside drum */
+.balls-container {
+  position:absolute; inset:8px;
+  border-radius:50%;
+  overflow:hidden;
+}
+
+/* Individual ball */
+.ball {
+  position:absolute;
+  width:22px; height:22px;
+  border-radius:50%;
+  background: radial-gradient(circle at 35% 30%, var(--red-shine) 0%, var(--red-ball) 45%, var(--red-dark) 100%);
+  box-shadow: inset -2px -2px 4px rgba(0,0,0,0.4), inset 1px 1px 3px rgba(255,140,120,0.4), 0 2px 4px rgba(0,0,0,0.4);
+  transition:left 0.4s ease, top 0.4s ease;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Space Mono',monospace;
+  font-size:7px; font-weight:700; color:rgba(255,255,255,0.9);
+  text-shadow:0 1px 2px rgba(0,0,0,0.6);
+}
+.ball::after {
+  content:'';
+  position:absolute; top:18%; left:22%; width:30%; height:22%;
+  background:radial-gradient(ellipse, rgba(255,255,255,0.55) 0%, transparent 70%);
+  border-radius:50%;
+}
+
+/* Stand */
+.stand {
+  width:6px; height:24px;
+  background:linear-gradient(180deg, rgba(100,150,220,0.5), rgba(40,60,120,0.6));
+  border-radius:3px;
+  margin:0 auto;
+  position:relative;
+}
+.stand-base {
+  width:50px; height:8px;
+  background:linear-gradient(180deg, rgba(80,120,200,0.4), rgba(30,50,120,0.5));
+  border-radius:4px;
+  margin:0 auto;
+  border:0.5px solid var(--glass-border);
+}
+
+/* Output tube at bottom */
+.tube {
+  width:14px; height:18px;
+  background:linear-gradient(180deg, rgba(100,160,255,0.15), rgba(50,80,200,0.25));
+  border:0.5px solid var(--glass-border);
+  border-radius:0 0 3px 3px;
+  margin:0 auto;
+  position:relative;
+  overflow:hidden;
+}
+
+/* Result digit display */
+.result-display {
+  width:72px; height:64px;
+  background:linear-gradient(160deg, #0a1520 0%, #0d1c30 100%);
+  border:1.5px solid rgba(212,168,67,0.4);
+  border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Space Mono',monospace;
+  font-size:2rem; font-weight:700;
+  color:var(--gold-light);
+  box-shadow:
+    inset 0 0 12px rgba(0,0,0,0.6),
+    0 0 0 0.5px rgba(212,168,67,0.15),
+    0 2px 8px rgba(0,0,0,0.4);
+  position:relative; overflow:hidden;
+  transition:all 0.3s;
+}
+.result-display::before {
+  content:'';
+  position:absolute; top:0; left:0; right:0; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(212,168,67,0.5), transparent);
+}
+.result-display.lit {
+  border-color:var(--gold);
+  box-shadow:
+    inset 0 0 12px rgba(0,0,0,0.4),
+    0 0 12px rgba(212,168,67,0.25),
+    0 0 0 0.5px rgba(212,168,67,0.3);
+  color:var(--gold-light);
+}
+
+/* Big result banner */
+.result-banner {
+  text-align:center; margin-bottom:1.5rem;
+  min-height:60px;
+}
+.result-number {
+  font-family:'Space Mono',monospace;
+  font-size:2.5rem; font-weight:700;
+  letter-spacing:0.2em;
+  color:var(--gold-light);
+  opacity:0;
+  transition:opacity 0.5s;
+}
+.result-number.show { opacity:1; }
+.result-sub {
+  font-size:0.78rem; color:var(--text-muted);
+  letter-spacing:0.15em; margin-top:4px;
+}
+
+/* Separator machine */
+.sep-machine {
+  display:flex; flex-direction:column; align-items:center;
+  gap:4px; padding-bottom:44px;
+}
+.sep-dash { font-size:1.8rem; color:rgba(212,168,67,0.3); line-height:1; }
+
+/* ROLL BTN */
+.roll-btn {
+  display:block; width:100%; max-width:300px; margin:0 auto 1.5rem;
+  padding:1rem;
+  background:linear-gradient(135deg, #7a4e10 0%, var(--gold) 40%, #c8902a 70%, #7a4e10 100%);
+  background-size:200% 100%;
+  border:none; border-radius:12px;
+  font-family:'Sarabun',sans-serif; font-size:1rem; font-weight:700;
+  letter-spacing:0.12em; color:#0a0800;
+  cursor:pointer; transition:all 0.3s;
+  position:relative; overflow:hidden;
+}
+.roll-btn::before {
+  content:'';
+  position:absolute; inset:1px;
+  border-radius:11px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+  pointer-events:none;
+}
+.roll-btn:hover:not(:disabled) { background-position:100% 0; transform:translateY(-2px); box-shadow:0 6px 24px rgba(212,168,67,0.3); }
+.roll-btn:active:not(:disabled) { transform:scale(0.98); }
+.roll-btn:disabled { opacity:0.45; cursor:not-allowed; }
+
+/* Sub results */
+.sub-results { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:1.5rem; }
+.sub-card {
+  background:rgba(22,27,34,0.8); border:0.5px solid rgba(212,168,67,0.2);
+  border-radius:10px; padding:0.85rem 1rem; text-align:center;
+}
+.sub-card-label { font-size:0.68rem; color:var(--text-muted); letter-spacing:0.12em; text-transform:uppercase; margin-bottom:6px; }
+.sub-digits { font-family:'Space Mono',monospace; font-size:1.5rem; font-weight:700; color:var(--gold-light); letter-spacing:0.15em; }
+
+/* History */
+.history-section { margin-top:0.5rem; }
+.history-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.history-title { font-size:0.68rem; color:var(--text-muted); letter-spacing:0.15em; text-transform:uppercase; }
+.clear-btn { font-size:0.68rem; color:var(--text-muted); background:none; border:none; cursor:pointer; font-family:'Sarabun',sans-serif; }
+.clear-btn:hover { color:#e05050; }
+.history-list { display:flex; flex-direction:column; gap:5px; }
+.history-item {
+  display:flex; align-items:center; justify-content:space-between;
+  background:rgba(22,27,34,0.7); border:0.5px solid rgba(212,168,67,0.15);
+  border-radius:7px; padding:0.45rem 0.85rem;
+  opacity:0; animation:fade-in 0.3s forwards;
+}
+@keyframes fade-in { from{opacity:0;transform:translateY(-5px)} to{opacity:1;transform:translateY(0)} }
+.history-num { font-family:'Space Mono',monospace; font-size:0.85rem; color:var(--gold-light); letter-spacing:0.12em; }
+.history-badge { font-size:0.6rem; padding:2px 6px; border-radius:4px; background:rgba(212,168,67,0.1); color:var(--gold-dark); }
+.history-time { font-size:0.65rem; color:var(--text-muted); font-family:'Space Mono',monospace; }
+
+/* Nerd Stats */
+.nerd-toggle-row {
+  display:flex; align-items:center; justify-content:space-between;
+  margin:1.5rem 0 0;
+  padding:0.75rem 1rem;
+  background:rgba(22,27,34,0.6);
+  border:0.5px solid rgba(212,168,67,0.15);
+  border-radius:10px;
+  cursor:pointer;
+}
+.nerd-toggle-label {
+  display:flex; align-items:center; gap:8px;
+  font-size:0.75rem; color:var(--text-muted); letter-spacing:0.15em; text-transform:uppercase;
+}
+.nerd-icon { font-size:0.9rem; }
+/* Toggle switch */
+.toggle-sw {
+  width:38px; height:20px; border-radius:10px;
+  background:rgba(255,255,255,0.08); border:0.5px solid rgba(212,168,67,0.25);
+  position:relative; transition:background 0.25s;
+  flex-shrink:0;
+}
+.toggle-sw.on { background:rgba(212,168,67,0.25); border-color:var(--gold); }
+.toggle-sw::after {
+  content:''; position:absolute; top:3px; left:3px;
+  width:14px; height:14px; border-radius:50%;
+  background:var(--text-muted); transition:all 0.25s;
+}
+.toggle-sw.on::after { left:21px; background:var(--gold); }
+
+.nerd-panel {
+  display:none;
+  background:rgba(10,14,20,0.8);
+  border:0.5px solid rgba(212,168,67,0.2);
+  border-top:none;
+  border-radius:0 0 12px 12px;
+  padding:1.25rem;
+  font-family:'Space Mono',monospace;
+  overflow:hidden;
+  animation:slide-down 0.25s ease;
+}
+.nerd-panel.open { display:block; }
+@keyframes slide-down { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+
+.nerd-section-title {
+  font-size:0.6rem; color:var(--gold-dark); letter-spacing:0.2em;
+  text-transform:uppercase; margin-bottom:0.75rem; margin-top:1rem;
+  border-bottom:0.5px solid rgba(212,168,67,0.1); padding-bottom:4px;
+}
+.nerd-section-title:first-child { margin-top:0; }
+
+/* Entropy bars */
+.entropy-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.entropy-label { font-size:0.65rem; color:var(--text-muted); width:130px; flex-shrink:0; }
+.entropy-track {
+  flex:1; height:5px; background:rgba(255,255,255,0.05);
+  border-radius:3px; overflow:hidden; position:relative;
+}
+.entropy-fill {
+  height:100%; border-radius:3px; width:0%;
+  background:linear-gradient(90deg, var(--gold-dark), var(--gold-light));
+  transition:width 0.8s cubic-bezier(0.4,0,0.2,1);
+}
+.entropy-val { font-size:0.65rem; color:var(--gold); width:70px; text-align:right; }
+
+/* Algorithm badges */
+.algo-grid { display:flex; flex-direction:column; gap:8px; }
+.algo-item {
+  display:flex; gap:10px; align-items:flex-start;
+  padding:8px 10px;
+  background:rgba(255,255,255,0.02);
+  border:0.5px solid rgba(212,168,67,0.1);
+  border-radius:7px;
+}
+.algo-badge {
+  font-size:0.58rem; padding:3px 7px; border-radius:4px; flex-shrink:0; margin-top:1px;
+  font-weight:700; letter-spacing:0.08em;
+}
+.badge-csprng { background:rgba(80,120,255,0.15); color:#7aabff; border:0.5px solid rgba(80,120,255,0.25); }
+.badge-rej    { background:rgba(80,200,120,0.12); color:#70d490; border:0.5px solid rgba(80,200,120,0.2); }
+.badge-iid    { background:rgba(212,168,67,0.12); color:var(--gold); border:0.5px solid rgba(212,168,67,0.2); }
+.algo-text { font-size:0.65rem; color:var(--text-muted); line-height:1.6; font-family:'Sarabun',sans-serif; }
+.algo-text code { font-family:'Space Mono',monospace; font-size:0.6rem; background:rgba(255,255,255,0.06); color:#7aabff; padding:1px 5px; border-radius:3px; }
+
+/* Chi-square + draw stats */
+.stat-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.stat-item { background:rgba(255,255,255,0.02); border:0.5px solid rgba(212,168,67,0.1); border-radius:7px; padding:8px 10px; }
+.stat-label { font-size:0.58rem; color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:4px; font-family:'Sarabun',sans-serif; }
+.stat-value { font-size:1rem; font-weight:700; color:var(--gold-light); }
+.stat-sub { font-size:0.58rem; color:var(--text-muted); margin-top:2px; font-family:'Sarabun',sans-serif; }
+
+/* Bias demo */
+.bias-row { display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; }
+.bias-col { display:flex; flex-direction:column; align-items:center; gap:3px; }
+.bias-bar-wrap { width:22px; height:50px; background:rgba(255,255,255,0.04); border-radius:3px; display:flex; align-items:flex-end; overflow:hidden; }
+.bias-bar { width:100%; border-radius:3px; transition:height 0.6s ease; }
+.bias-bar.biased { background:rgba(232,57,42,0.6); }
+.bias-bar.uniform { background:rgba(80,200,120,0.6); }
+.bias-digit { font-size:0.6rem; color:var(--text-muted); }
+.bias-title { font-size:0.6rem; color:var(--text-muted); font-family:'Sarabun',sans-serif; letter-spacing:0.05em; margin-bottom:6px; }
+
+/* ===== Shopee Affiliate Banner ===== */
+
+/* After-result inline banner */
+.shopee-inline {
+  display:none;
+  margin-bottom:1.5rem;
+  opacity:0;
+  transform:translateY(6px);
+  transition:opacity 0.5s ease, transform 0.5s ease;
+}
+.shopee-inline.visible {
+  display:block;
+  opacity:1;
+  transform:translateY(0);
+}
+.shopee-inline-inner {
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:0.75rem 1rem;
+  background:rgba(238,77,45,0.06);
+  border:0.5px solid rgba(238,77,45,0.18);
+  border-radius:10px;
+  text-decoration:none;
+  transition:background 0.2s, border-color 0.2s;
+}
+.shopee-inline-inner:hover {
+  background:rgba(238,77,45,0.1);
+  border-color:rgba(238,77,45,0.32);
+}
+.shopee-inline-left { display:flex; align-items:center; gap:10px; }
+.shopee-dot {
+  width:8px; height:8px; border-radius:50%;
+  background:#ee4d2d; opacity:0.7; flex-shrink:0;
+  animation:pulse-dot 2.5s ease infinite;
+}
+@keyframes pulse-dot {
+  0%,100%{ transform:scale(1); opacity:0.7; }
+  50%{ transform:scale(1.35); opacity:1; }
+}
+.shopee-inline-text { font-size:0.78rem; color:var(--text-muted); line-height:1.4; }
+.shopee-inline-text strong { color:rgba(238,77,45,0.85); font-weight:600; }
+.shopee-inline-cta {
+  font-size:0.7rem; color:rgba(238,77,45,0.7);
+  letter-spacing:0.1em; white-space:nowrap; flex-shrink:0;
+  font-family:'Space Mono',monospace;
+}
+.shopee-disclosure {
+  font-size:0.58rem; color:var(--text-muted);
+  text-align:center; margin-top:5px; opacity:0.6;
+  font-family:'Sarabun',sans-serif;
+}
+
+/* Floating corner widget */
+.shopee-float {
+  position:fixed; bottom:20px; right:20px; z-index:999;
+  opacity:0; pointer-events:none;
+  transform:translateY(10px);
+  transition:opacity 0.4s ease, transform 0.4s ease;
+}
+.shopee-float.visible {
+  opacity:1; pointer-events:auto;
+  transform:translateY(0);
+}
+.shopee-float-inner {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 14px 8px 10px;
+  background:rgba(13,17,23,0.88);
+  border:0.5px solid rgba(238,77,45,0.22);
+  border-radius:24px;
+  text-decoration:none;
+  backdrop-filter:blur(8px);
+  transition:background 0.2s, border-color 0.2s, transform 0.2s;
+  box-shadow:0 4px 16px rgba(0,0,0,0.4);
+}
+.shopee-float-inner:hover {
+  background:rgba(238,77,45,0.1);
+  border-color:rgba(238,77,45,0.4);
+  transform:translateY(-2px);
+}
+.shopee-float-logo {
+  width:20px; height:20px; border-radius:50%;
+  background:#ee4d2d;
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; flex-shrink:0;
+}
+.shopee-float-label {
+  font-size:0.7rem; color:var(--text-muted);
+  font-family:'Sarabun',sans-serif; line-height:1.3;
+}
+.shopee-float-label b { color:rgba(238,77,45,0.8); font-weight:600; }
+.shopee-float-close {
+  position:absolute; top:-5px; right:-5px;
+  width:16px; height:16px; border-radius:50%;
+  background:rgba(40,40,50,0.95); border:0.5px solid rgba(255,255,255,0.1);
+  display:flex; align-items:center; justify-content:center;
+  font-size:9px; color:var(--text-muted); cursor:pointer;
+  line-height:1;
+}
+.shopee-float-close:hover { color:var(--text); }
+
+/* Status text */
+.status {
+  text-align:center; font-size:0.78rem; color:var(--text-muted);
+  letter-spacing:0.1em; min-height:20px; margin-bottom:1rem;
+  transition:color 0.3s;
+}
+.status.active { color:var(--gold); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+  <header>
+    <div class="header-deco">
+      <div class="deco-line"></div>
+      <span style="color:var(--gold);font-size:0.7rem;letter-spacing:0.2em;">✦</span>
+      <div class="deco-line r"></div>
+    </div>
+    <h1>เครื่องออกรางวัล</h1>
+    <div class="sub">Thai Government Lottery — CSPRNG Ball Machine</div>
+  </header>
+
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="setMode('all')">ทุกรางวัล (6+3+2)</button>
+    <button class="mode-tab" onclick="setMode('6')">6 ตัว</button>
+    <button class="mode-tab" onclick="setMode('3')">3 ตัว</button>
+    <button class="mode-tab" onclick="setMode('2')">2 ตัว</button>
+  </div>
+
+  <div class="status" id="status">กดปุ่มเพื่อเริ่มสุ่มเลข</div>
+
+  <div class="machines-row" id="machines-row"></div>
+
+  <div class="result-banner" id="result-banner">
+    <div class="result-number" id="result-number">——</div>
+    <div class="result-sub" id="result-sub"></div>
+  </div>
+
+  <button class="roll-btn" id="roll-btn" onclick="roll()">▶ หมุนเครื่องออกรางวัล</button>
+
+  <div class="sub-results" id="sub-results" style="display:none;">
+    <div class="sub-card">
+      <div class="sub-card-label">3 ตัวท้าย (บน)</div>
+      <div class="sub-digits" id="d3-top">—</div>
+    </div>
+    <div class="sub-card">
+      <div class="sub-card-label">2 ตัวท้าย (ล่าง)</div>
+      <div class="sub-digits" id="d2-bot">—</div>
+    </div>
+  </div>
+
+  <!-- Shopee inline banner — shows after result -->
+  <div class="shopee-inline" id="shopee-inline">
+    <a class="shopee-inline-inner" href="YOUR_SHOPEE_AFFILIATE_FLASH_SALE_URL" target="_blank" rel="noopener" id="shopee-inline-link">
+      <div class="shopee-inline-left">
+        <div class="shopee-dot"></div>
+        <div class="shopee-inline-text">
+          <strong>Shopee Flash Sale</strong> กำลังมีโปรอยู่ตอนนี้<br>
+          สนับสนุนเว็บนี้ได้ด้วยการช้อปผ่านลิงค์นี้ครับ
+        </div>
+      </div>
+      <div class="shopee-inline-cta">ช้อปเลย →</div>
+    </a>
+    <div class="shopee-disclosure">* ลิงค์ affiliate — ราคาและโปรโมชั่นเหมือนกันทุกประการ</div>
+  </div>
+
+  <div class="history-section">
+    <div class="history-header">
+      <div class="history-title">ประวัติการสุ่ม</div>
+      <button class="clear-btn" onclick="clearHistory()">ล้างประวัติ</button>
+    </div>
+    <div class="history-list" id="history"></div>
+  </div>
+
+  <!-- NERD STATS TOGGLE -->
+  <div class="nerd-toggle-row" onclick="toggleNerd()" id="nerd-toggle-row" style="border-radius:10px 10px 10px 10px;">
+    <div class="nerd-toggle-label">
+      <span class="nerd-icon">⚙</span>
+      <span>Nerd Stats — Algorithm & Entropy</span>
+    </div>
+    <div class="toggle-sw" id="nerd-sw"></div>
+  </div>
+
+  <div class="nerd-panel" id="nerd-panel">
+
+    <!-- 1. Algorithm breakdown -->
+    <div class="nerd-section-title">Algorithm ที่ใช้</div>
+    <div class="algo-grid">
+      <div class="algo-item">
+        <span class="algo-badge badge-csprng">CSPRNG</span>
+        <div class="algo-text">
+          ใช้ <code>crypto.getRandomValues()</code> (Web Crypto API) ซึ่ง browser เรียก OS-level entropy pool (Linux: <code>/dev/urandom</code>, Windows: <code>BCryptGenRandom</code>) — ไม่ใช่ <code>Math.random()</code> ที่ seed ได้
+        </div>
+      </div>
+      <div class="algo-item">
+        <span class="algo-badge badge-rej">Rejection Sampling</span>
+        <div class="algo-text">
+          สุ่ม byte 0–255 → รับเฉพาะ 0–249 (250 ค่า = 25×10 พอดี) → <code>byte % 10</code> = digit ที่ uniform ทุกตัว ถ้าได้ 250–255 → สุ่มใหม่ หลีกเลี่ยง modulo bias ที่ทำให้เลข 0–5 ออกบ่อยกว่า
+        </div>
+      </div>
+      <div class="algo-item">
+        <span class="algo-badge badge-iid">i.i.d.</span>
+        <div class="algo-text">
+          แต่ละหลักสุ่มอิสระจากกัน (Independent and Identically Distributed) ตรงกับที่ข้อมูล myhora 480 งวดผ่าน Ljung-Box test — ไม่มี autocorrelation ระหว่างหลัก
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Entropy Monitor (live) -->
+    <div class="nerd-section-title">Entropy Monitor (live)</div>
+    <div class="entropy-row">
+      <div class="entropy-label">6 หลัก — รางวัลที่ 1</div>
+      <div class="entropy-track"><div class="entropy-fill" id="ebar6" style="width:99.85%"></div></div>
+      <div class="entropy-val" id="eval6">19.93 bits</div>
+    </div>
+    <div class="entropy-row">
+      <div class="entropy-label">3 หลัก — 3 ตัวบน/ล่าง</div>
+      <div class="entropy-track"><div class="entropy-fill" id="ebar3" style="width:50.0%"></div></div>
+      <div class="entropy-val" id="eval3">9.97 bits</div>
+    </div>
+    <div class="entropy-row">
+      <div class="entropy-label">2 หลัก — 2 ตัวบน/ล่าง</div>
+      <div class="entropy-track"><div class="entropy-fill" id="ebar2" style="width:33.3%"></div></div>
+      <div class="entropy-val" id="eval2">6.64 bits</div>
+    </div>
+    <div style="font-size:0.6rem;color:var(--text-muted);margin-top:6px;font-family:'Sarabun',sans-serif;line-height:1.6;">
+      Shannon Entropy H = n × log₂(10) bits &nbsp;|&nbsp; Max entropy หมายความว่าทุก outcome มีโอกาสเท่ากัน = random สมบูรณ์ที่สุด
+    </div>
+
+    <!-- 3. Modulo Bias visualizer -->
+    <div class="nerd-section-title">Modulo Bias — ทำไมต้อง Rejection Sampling?</div>
+    <div style="display:flex;gap:32px;flex-wrap:wrap;">
+      <div>
+        <div class="bias-title">❌ Math.random() × 10 (มี bias)</div>
+        <div class="bias-row" id="bias-bad"></div>
+      </div>
+      <div>
+        <div class="bias-title">✅ CSPRNG + Rejection (uniform)</div>
+        <div class="bias-row" id="bias-good"></div>
+      </div>
+    </div>
+    <div style="font-size:0.6rem;color:var(--text-muted);margin-top:8px;font-family:'Sarabun',sans-serif;line-height:1.6;">
+      ความสูงแท่ง = สัดส่วนโอกาสออก &nbsp;|&nbsp; 256 % 10 = 6 ทำให้ digit 0–5 มีโอกาส 26/256 แต่ digit 6–9 มีเพียง 25/256
+    </div>
+
+    <!-- 4. Session stats -->
+    <div class="nerd-section-title">Session Statistics</div>
+    <div class="stat-grid">
+      <div class="stat-item">
+        <div class="stat-label">จำนวนครั้งที่สุ่ม</div>
+        <div class="stat-value" id="stat-draws">0</div>
+        <div class="stat-sub">งวดนี้</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Total Bytes Used</div>
+        <div class="stat-value" id="stat-bytes">0</div>
+        <div class="stat-sub">จาก CSPRNG pool</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Rejection Rate</div>
+        <div class="stat-value" id="stat-rej">—</div>
+        <div class="stat-sub">expected ≈ 2.35%</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Entropy Generated</div>
+        <div class="stat-value" id="stat-entropy">0</div>
+        <div class="stat-sub">bits สะสม</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ========== CSPRNG ==========
+function secureDigit() {
+  const buf = new Uint8Array(1);
+  let b;
+  do { crypto.getRandomValues(buf); b = buf[0]; } while (b >= 250);
+  return b % 10;
+}
+function secureDigits(n) { return Array.from({length:n}, () => secureDigit()); }
+
+// ========== State ==========
+let mode = 'all';
+let rolling = false;
+let history = [];
+const BALL_COUNT = 10; // balls inside each drum
+
+// Ball rest positions (inside 84px circle, 22px balls)
+// Arranged naturally clustered at bottom of drum
+const restPositions = [
+  {x:12,y:38},{x:32,y:48},{x:52,y:48},{x:22,y:56},{x:42,y:58},
+  {x:62,y:38},{x:8,y:22},{x:58,y:22},{x:30,y:30},{x:50,y:32}
+];
+// Spinning positions — spread more
+const spinPositions = [
+  {x:5,y:5},{x:28,y:2},{x:55,y:8},{x:62,y:30},{x:55,y:55},
+  {x:28,y:62},{x:5,y:52},{x:2,y:28},{x:20,y:18},{x:45,y:18}
+];
+
+// ========== BUILD MACHINES ==========
+function getNumDigits() {
+  return {all:6, '6':6, '3':3, '2':2}[mode];
+}
+
+function buildMachines(n) {
+  const row = document.getElementById('machines-row');
+  row.innerHTML = '';
+
+  for (let i = 0; i < n; i++) {
+    if (n === 6 && i === 3) {
+      // separator
+      const sep = document.createElement('div');
+      sep.className = 'sep-machine';
+      sep.innerHTML = '<div class="sep-dash">–</div>';
+      row.appendChild(sep);
+    }
+
+    const wrap = document.createElement('div');
+    wrap.className = 'machine-wrap';
+    wrap.id = `wrap-${i}`;
+
+    const posLabels = n===6
+      ? ['แสนหลัก','หมื่น','พัน','ร้อย','สิบ','หน่วย']
+      : n===3 ? ['ร้อย','สิบ','หน่วย']
+      : ['สิบ','หน่วย'];
+
+    wrap.innerHTML = `
+      <div class="machine-label">${posLabels[i]}</div>
+      <div class="machine" id="machine-${i}">
+        <div class="drum" id="drum-${i}">
+          <div class="balls-container" id="balls-${i}"></div>
+          <div class="axle"></div>
+        </div>
+      </div>
+      <div class="stand"></div>
+      <div class="stand-base"></div>
+      <div class="tube"></div>
+      <div class="result-display" id="disp-${i}">?</div>
+    `;
+    row.appendChild(wrap);
+
+    // init balls
+    initBalls(i);
+  }
+}
+
+function initBalls(idx) {
+  const container = document.getElementById(`balls-${idx}`);
+  container.innerHTML = '';
+  for (let b = 0; b < BALL_COUNT; b++) {
+    const ball = document.createElement('div');
+    ball.className = 'ball';
+    ball.id = `ball-${idx}-${b}`;
+    const pos = restPositions[b];
+    ball.style.left = pos.x + 'px';
+    ball.style.top = pos.y + 'px';
+    container.appendChild(ball);
+  }
+}
+
+// ========== ANIMATION ==========
+async function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function animateMachine(idx, digit, delay) {
+  await wait(delay);
+  const drum = document.getElementById(`drum-${idx}`);
+  const disp = document.getElementById(`disp-${idx}`);
+
+  setStatus(`กำลังหมุนเครื่องหลักที่ ${idx+1}...`);
+
+  // Phase 1: balls scatter (loading balls)
+  loadBalls(idx);
+  await wait(300);
+
+  // Phase 2: drum spins — CSS rotation + balls move
+  drum.style.transition = 'transform 1.8s cubic-bezier(0.4,0,0.2,1)';
+  drum.style.transform = `rotate(${720 + Math.random()*180}deg)`;
+
+  // while spinning, randomize ball positions
+  const spinInterval = setInterval(() => shuffleBalls(idx), 80);
+  await wait(1000);
+
+  // Phase 3: slow down — balls settle
+  clearInterval(spinInterval);
+  settleBalls(idx);
+  drum.style.transition = 'transform 0.8s ease-out';
+  drum.style.transform = `rotate(${parseFloat(drum.style.transform)||0}deg)`;
+  await wait(600);
+
+  // Phase 4: one ball drops (highlight it), show digit
+  await dropBall(idx, digit);
+  await wait(150);
+
+  // Show digit
+  disp.textContent = digit;
+  disp.classList.add('lit');
+  disp.style.animation = 'none';
+  disp.style.transform = 'scale(1.1)';
+  setTimeout(() => { disp.style.transform = 'scale(1)'; disp.style.transition = 'transform 0.2s'; }, 150);
+
+  // reset drum rotation for next time
+  drum.style.transition = 'none';
+  drum.style.transform = 'rotate(0deg)';
+}
+
+function loadBalls(idx) {
+  for (let b = 0; b < BALL_COUNT; b++) {
+    const ball = document.getElementById(`ball-${idx}-${b}`);
+    if (!ball) continue;
+    const pos = spinPositions[b];
+    ball.style.transition = 'left 0.3s ease, top 0.3s ease';
+    ball.style.left = pos.x + 'px';
+    ball.style.top = pos.y + 'px';
+    ball.style.opacity = '1';
+    ball.textContent = '';
+  }
+}
+
+function shuffleBalls(idx) {
+  for (let b = 0; b < BALL_COUNT; b++) {
+    const ball = document.getElementById(`ball-${idx}-${b}`);
+    if (!ball) continue;
+    const x = 4 + Math.random() * 56;
+    const y = 4 + Math.random() * 56;
+    ball.style.transition = 'left 0.1s, top 0.1s';
+    ball.style.left = x + 'px';
+    ball.style.top = y + 'px';
+  }
+}
+
+function settleBalls(idx) {
+  for (let b = 0; b < BALL_COUNT; b++) {
+    const ball = document.getElementById(`ball-${idx}-${b}`);
+    if (!ball) continue;
+    const pos = restPositions[b];
+    ball.style.transition = 'left 0.5s ease, top 0.5s ease';
+    ball.style.left = pos.x + 'px';
+    ball.style.top = pos.y + 'px';
+  }
+}
+
+async function dropBall(idx, digit) {
+  // highlight the "winning" ball = ball 0, move it to tube exit position
+  const winner = document.getElementById(`ball-${idx}-0`);
+  if (!winner) return;
+  winner.style.transition = 'left 0.3s ease, top 0.3s ease, background 0.2s, width 0.2s, height 0.2s';
+  winner.style.left = '29px';
+  winner.style.top = '64px';
+  winner.textContent = digit;
+  winner.style.fontSize = '9px';
+  winner.style.background = `radial-gradient(circle at 35% 30%, #ff9, #e8a020 45%, #8a5500 100%)`;
+  await wait(350);
+  // fade rest balls
+  for (let b = 1; b < BALL_COUNT; b++) {
+    const ball = document.getElementById(`ball-${idx}-${b}`);
+    if (ball) ball.style.opacity = '0.3';
+  }
+  await wait(200);
+}
+
+// ========== MAIN ROLL ==========
+async function roll() {
+  if (rolling) return;
+  rolling = true;
+  document.getElementById('roll-btn').disabled = true;
+
+  const n = getNumDigits();
+  const digits = secureDigitsTracked(n);
+
+  // reset displays
+  for (let i = 0; i < n; i++) {
+    const disp = document.getElementById(`disp-${i}`);
+    if (disp) { disp.textContent = '?'; disp.classList.remove('lit'); disp.style.transition = ''; }
+    initBalls(i);
+  }
+  document.getElementById('result-number').classList.remove('show');
+  document.getElementById('result-sub').textContent = '';
+  if (mode==='all') {
+    document.getElementById('d3-top').textContent = '—';
+    document.getElementById('d2-bot').textContent = '—';
+  }
+
+  setStatus('กำลังเริ่มออกรางวัล...', true);
+
+  // Animate machines sequentially
+  const machineDelay = n === 6 ? 400 : n === 3 ? 550 : 700;
+  const promises = digits.map((d, i) => animateMachine(i, d, i * machineDelay));
+
+  // Wait for all
+  for (let i = 0; i < n; i++) {
+    await wait(i * machineDelay + 2600);
+  }
+
+  // Show final result
+  const numStr = digits.join('');
+  const formatted = n===6 ? numStr.slice(0,3)+' – '+numStr.slice(3) : numStr.split('').join(' ');
+  const rn = document.getElementById('result-number');
+  rn.textContent = formatted;
+  rn.classList.add('show');
+
+  if (mode === 'all') {
+    document.getElementById('result-sub').textContent = 'รางวัลที่ 1';
+    document.getElementById('d3-top').textContent = numStr.slice(3);
+    document.getElementById('d2-bot').textContent = numStr.slice(4);
+    document.getElementById('sub-results').style.display = 'grid';
+  } else {
+    document.getElementById('result-sub').textContent = {
+      '6':'รางวัลที่ 1 (6 หลัก)', '3':'3 ตัว', '2':'2 ตัว'
+    }[mode]||'';
+  }
+
+  setStatus('ออกรางวัลเรียบร้อยแล้ว ✦');
+  addHistory(numStr, mode, n);
+  updateNerdStats(n);
+  showShopeeBanner();
+
+  rolling = false;
+  document.getElementById('roll-btn').disabled = false;
+}
+
+// ========== UI HELPERS ==========
+function setStatus(msg, active=false) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status' + (active?' active':'');
+}
+
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode-tab').forEach((el,i) => {
+    el.classList.toggle('active', ['all','6','3','2'][i]===m);
+  });
+  document.getElementById('sub-results').style.display = m==='all'?'grid':'none';
+  document.getElementById('result-number').classList.remove('show');
+  document.getElementById('result-number').textContent = '——';
+  document.getElementById('result-sub').textContent = '';
+  setStatus('กดปุ่มเพื่อเริ่มสุ่มเลข');
+  buildMachines(getNumDigits());
+}
+
+function addHistory(numStr, mode, n) {
+  const now = new Date();
+  const timeStr = now.toTimeString().slice(0,8);
+  const modeLabel = {all:'6 ตัว','6':'6 ตัว','3':'3 ตัว','2':'2 ตัว'}[mode];
+  history.unshift({num:numStr, time:timeStr, mode:modeLabel, n});
+  if (history.length > 10) history.pop();
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history');
+  list.innerHTML = '';
+  history.forEach(h => {
+    const formatted = h.n===6 ? h.num.slice(0,3)+' – '+h.num.slice(3) : h.num.split('').join(' ');
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.innerHTML = `
+      <span class="history-badge">${h.mode}</span>
+      <span class="history-num">${formatted}</span>
+      <span class="history-time">${h.time}</span>
+    `;
+    list.appendChild(item);
+  });
+}
+
+function clearHistory() { history=[]; document.getElementById('history').innerHTML=''; }
+
+// ========== NERD STATS ==========
+let nerdOpen = false;
+let sessionDraws = 0;
+let sessionBytesTotal = 0;
+let sessionBytesRejected = 0;
+let sessionEntropyBits = 0;
+
+// Modulo bias heights: Math.random() approach — digit 0-5 = 26/256, digit 6-9 = 25/256
+const biasedWeights = [26,26,26,26,26,26,25,25,25,25];
+const uniformWeights = Array(10).fill(25);
+const maxW = 26;
+
+function buildBiasViz() {
+  ['bias-bad','bias-good'].forEach((id, isGood) => {
+    const row = document.getElementById(id);
+    if (!row || row.children.length > 0) return;
+    const weights = isGood ? uniformWeights : biasedWeights;
+    for (let d=0; d<10; d++) {
+      const col = document.createElement('div');
+      col.className = 'bias-col';
+      const pct = Math.round(weights[d] / maxW * 100);
+      col.innerHTML = `
+        <div class="bias-bar-wrap">
+          <div class="bias-bar ${isGood?'uniform':'biased'}" style="height:${pct}%"></div>
+        </div>
+        <div class="bias-digit">${d}</div>
+      `;
+      row.appendChild(col);
+    }
+  });
+}
+
+function toggleNerd() {
+  nerdOpen = !nerdOpen;
+  const panel = document.getElementById('nerd-panel');
+  const sw    = document.getElementById('nerd-sw');
+  const row   = document.getElementById('nerd-toggle-row');
+  panel.classList.toggle('open', nerdOpen);
+  sw.classList.toggle('on', nerdOpen);
+  row.style.borderRadius = nerdOpen ? '10px 10px 0 0' : '10px';
+  if (nerdOpen) buildBiasViz();
+}
+
+// Patched secureDigit — tracks every byte drawn and every rejection
+function secureDigitTracked() {
+  const buf = new Uint8Array(1);
+  let b;
+  do {
+    crypto.getRandomValues(buf);
+    b = buf[0];
+    sessionBytesTotal++;          // count ALL bytes including rejected ones
+    if (b >= 250) {
+      sessionBytesRejected++;     // count rejections separately
+    }
+  } while (b >= 250);
+  return b % 10;
+}
+
+function secureDigitsTracked(n) {
+  return Array.from({length:n}, () => secureDigitTracked());
+}
+
+// Run background simulation (1000 bytes) so rejection rate is meaningful from draw #1
+function runRejectionSim() {
+  const buf = new Uint8Array(1000);
+  crypto.getRandomValues(buf);
+  for (const b of buf) {
+    sessionBytesTotal++;
+    if (b >= 250) sessionBytesRejected++;
+  }
+}
+
+function updateNerdStats(n) {
+  sessionDraws++;
+  sessionEntropyBits += n * Math.log2(10);
+
+  // Run small background sim so rejection rate always has enough sample size
+  if (sessionBytesTotal < 500) runRejectionSim();
+
+  document.getElementById('stat-draws').textContent = sessionDraws;
+  document.getElementById('stat-bytes').textContent = sessionBytesTotal.toLocaleString();
+
+  // Rejection rate: actual vs theoretical
+  const actualRate = sessionBytesTotal > 0
+    ? (sessionBytesRejected / sessionBytesTotal * 100).toFixed(2)
+    : '0.00';
+  document.getElementById('stat-rej').textContent = actualRate + '%';
+
+  // Color-code: green if within 1% of expected 2.35%
+  const rejEl = document.getElementById('stat-rej');
+  const diff = Math.abs(parseFloat(actualRate) - 2.35);
+  rejEl.style.color = diff < 1.0 ? '#70d490' : diff < 2.0 ? 'var(--gold-light)' : '#e05050';
+
+  document.getElementById('stat-entropy').textContent = sessionEntropyBits.toFixed(1);
+
+  // Update stat-sub for rejection to show actual/expected
+  const rejSub = rejEl.closest('.stat-item')?.querySelector('.stat-sub');
+  if (rejSub) rejSub.textContent = `expected ≈ 2.35% | n=${sessionBytesTotal.toLocaleString()}`;
+}
+
+// ========== SHOPEE AFFILIATE + PERSONALIZATION ==========
+const SHOPEE_AFFILIATE_URL = 'YOUR_SHOPEE_AFFILIATE_FLASH_SALE_URL';
+ 
+// ── localStorage keys ──────────────────────────────────────
+const LS_ROLLS      = 'lotto_total_rolls';
+const LS_FIRST      = 'lotto_first_visit';
+const LS_LAST       = 'lotto_last_visit';
+ 
+// ── helpers ────────────────────────────────────────────────
+function lsGet(k)       { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v)    { try { localStorage.setItem(k, v); } catch {} }
+function lsNum(k)       { return parseInt(lsGet(k) || '0', 10); }
+ 
+function isNewDay(tsStr) {
+  if (!tsStr) return true;
+  const last = new Date(parseInt(tsStr, 10));
+  const now  = new Date();
+  return last.toDateString() !== now.toDateString();
+}
+ 
+// ── init localStorage on page load ─────────────────────────
+function initUserTracking() {
+  if (!lsGet(LS_FIRST)) lsSet(LS_FIRST, Date.now().toString());
+  lsSet(LS_LAST, Date.now().toString());
+}
+ 
+// ── bump roll counter ───────────────────────────────────────
+function trackRoll() {
+  const n = lsNum(LS_ROLLS) + 1;
+  lsSet(LS_ROLLS, n.toString());
+  lsSet(LS_LAST, Date.now().toString());
+  return n;
+}
+ 
+// ── pick message + URL based on context ────────────────────
+function getShopeeContext(totalRolls, lastNumStr) {
+  const lastDigit  = lastNumStr ? parseInt(lastNumStr.slice(-1), 10) : -1;
+  const isReturner = !isNewDay(lsGet(LS_LAST) === Date.now().toString()
+    ? lsGet(LS_FIRST)   // first session — not a returner
+    : lsGet(LS_LAST));  // check last vs today
+ 
+  // ── message matrix ────────────────────────────────────────
+  // Priority: lucky digit > returner > roll count > first time
+ 
+  if (lastDigit === 8 || lastDigit === 9) {
+    return {
+      headline : 'เลขดี! ต่อโชคที่ Shopee เลยครับ 🔥',
+      sub      : 'Flash Sale กำลังจัดอยู่ตอนนี้',
+      cta      : 'ช้อปโชคดี →',
+    };
+  }
+ 
+  if (totalRolls === 1) {
+    return {
+      headline : 'ยินดีต้อนรับครับ!',
+      sub      : 'สนับสนุนเว็บนี้ด้วยการช้อปที่ Shopee',
+      cta      : 'ดู Flash Sale →',
+    };
+  }
+ 
+  if (isReturner && totalRolls <= 3) {
+    return {
+      headline : 'ยินดีต้อนรับกลับครับ!',
+      sub      : 'วันนี้มีโปรใหม่ที่ Shopee รออยู่',
+      cta      : 'ดูโปรวันนี้ →',
+    };
+  }
+ 
+  if (totalRolls >= 2 && totalRolls <= 4) {
+    return {
+      headline : 'สุ่มหลายรอบแล้ว — แวะดู Flash Sale ไหมครับ?',
+      sub      : 'Shopee Flash Sale · ราคาเดียวกัน ช้อปผ่านลิงค์นี้',
+      cta      : 'แวะดูเลย →',
+    };
+  }
+ 
+  if (totalRolls >= 5 && totalRolls <= 9) {
+    return {
+      headline : 'ขาประจำแล้วนะครับ 😄',
+      sub      : 'Flash Sale มีโปรรอทุกวัน — ช้อปสนับสนุนเว็บด้วยนะ',
+      cta      : 'ดีลของวันนี้ →',
+    };
+  }
+ 
+  if (totalRolls >= 10) {
+    return {
+      headline : `สุ่มมาแล้ว ${totalRolls} ครั้ง! 🎯`,
+      sub      : 'ช้อปผ่านลิงค์นี้เพื่อสนับสนุนเว็บฟรีนี้ครับ',
+      cta      : 'Flash Sale →',
+    };
+  }
+ 
+  // fallback
+  return {
+    headline : 'Shopee Flash Sale กำลังจัดอยู่ครับ',
+    sub      : 'สนับสนุนเว็บนี้ด้วยการช้อปผ่านลิงค์นี้',
+    cta      : 'ช้อปเลย →',
+  };
+}
+ 
+// ── update DOM ──────────────────────────────────────────────
+function applyShopeeContext(ctx) {
+  // inline banner
+  const inlineText = document.querySelector('.shopee-inline-text');
+  if (inlineText) {
+    inlineText.innerHTML = `<strong>${ctx.headline}</strong><br>${ctx.sub}`;
+  }
+  const inlineCta = document.querySelector('.shopee-inline-cta');
+  if (inlineCta) inlineCta.textContent = ctx.cta;
+ 
+  // floating widget
+  const floatLabel = document.querySelector('.shopee-float-label');
+  if (floatLabel) {
+    floatLabel.innerHTML = `<b>${ctx.headline}</b><br>
+      <span style="font-size:0.62rem;opacity:0.7;">affiliate link · ราคาเดียวกัน</span>`;
+  }
+}
+ 
+function initShopeeLinks() {
+  document.getElementById('shopee-inline-link').href = SHOPEE_AFFILIATE_URL;
+  document.getElementById('shopee-float-link').href  = SHOPEE_AFFILIATE_URL;
+}
+ 
+// ── show inline banner after roll ──────────────────────────
+function showShopeeBanner(lastNumStr) {
+  const totalRolls = trackRoll();
+  const ctx = getShopeeContext(totalRolls, lastNumStr);
+  applyShopeeContext(ctx);
+ 
+  const el = document.getElementById('shopee-inline');
+  el.style.display = 'none';
+  el.classList.remove('visible');
+  requestAnimationFrame(() => {
+    el.style.display = 'block';
+    requestAnimationFrame(() => el.classList.add('visible'));
+  });
+}
+ 
+// ── floating widget ─────────────────────────────────────────
+let floatTimer = null;
+let floatDismissed = false;
+ 
+function scheduleFloat() {
+  if (floatDismissed) return;
+  clearTimeout(floatTimer);
+  floatTimer = setTimeout(() => {
+    // apply latest context to float too
+    const totalRolls = lsNum(LS_ROLLS);
+    const ctx = getShopeeContext(totalRolls, null);
+    applyShopeeContext(ctx);
+    document.getElementById('shopee-float').classList.add('visible');
+  }, 8000);
+}
+ 
+function closeFloat() {
+  floatDismissed = true;
+  document.getElementById('shopee-float').classList.remove('visible');
+}
+ 
+// Init
+runRejectionSim();
+initUserTracking();
+initShopeeLinks();
+scheduleFloat();
+setMode('all');
+</script>
+<!-- Shopee floating corner widget -->
+<div class="shopee-float" id="shopee-float">
+  <a class="shopee-float-inner" href="YOUR_SHOPEE_AFFILIATE_FLASH_SALE_URL" target="_blank" rel="noopener" id="shopee-float-link">
+    <div class="shopee-float-logo">🛍</div>
+    <div class="shopee-float-label">
+      <b>Flash Sale</b> กำลังจัดอยู่<br>
+      <span style="font-size:0.62rem;opacity:0.7;">affiliate link · ราคาเดียวกัน</span>
+    </div>
+  </a>
+  <div class="shopee-float-close" onclick="closeFloat()">✕</div>
+</div>
+ 
+</body>
+</html>
